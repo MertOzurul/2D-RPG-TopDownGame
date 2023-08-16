@@ -1,1 +1,152 @@
+using System.Collections;
+using System.Collections.Generic;
+using Unity.VisualScripting;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
+public class PlayerInput : MonoBehaviour
+{
+
+    Rigidbody2D rb; //Rigidbody2D
+    public Vector2 velocity; 
+    public float moveSpeed = 4f;
+    public Animator animator;
+    private Transform characterTransform;
+    bool canMove = true; //Bool for that players cant move while fireing
+    public Transform attackpoint; // Player's Sword's Attack Point (change it according to your wishes)
+    public float attackrange = 0.5f; // Sword's Attack Range (change it according to your wishes)
+    public LayerMask enemyLayer; // Layer that include Enemies
+    public float ballforce = 10f; // Speed of the player-created aduket ball
+    int damage; // Sword's Damage
+    float cooldownTimer = 0f; 
+    public float cooldownDuration = 1f; //Cooldown for using something (sword,aduket etc.)
+    public GameObject AduketBallPrefab; // AduketBall's Prefab
+    public Transform firePoint; //Where the aduket ball is launched
+
+    void Start()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        characterTransform = GetComponent<Transform>();
+    }
+
+    // Update is called once per frame
+    void FixedUpdate()
+    {
+        if (canMove)
+        {
+            if (velocity != Vector2.zero)
+            {
+                rb.MovePosition(rb.position + velocity * moveSpeed * Time.fixedDeltaTime); 
+            }
+            if (velocity.x > 0f) { FlipCharacter(5f); } //Sets scale.x to 5 if player's direction towards to right 
+            else if (velocity.x < 0f) { FlipCharacter(-5f); } //Sets scale.x to -5 if player's direction towards to left
+
+
+            animator.SetFloat("Speed", velocity.sqrMagnitude); // Sets animator parameter called Speed to players velocitys square (it doesnt matter that sets to square,just need to be greater than 0.01 is enough )
+
+
+            Aduket();
+
+        }
+        if (cooldownTimer > 0)
+        {
+            cooldownTimer -= Time.deltaTime;
+        }
+
+    }
+
+    private void OnMove(InputValue movementInput) //OnMove is an void of Unitys new InputSystem that makes object move
+    {
+        velocity = movementInput.Get<Vector2>();
+
+    }
+    public void FlipCharacter(float direction)
+    {
+        Vector3 scale = characterTransform.localScale;
+        scale.x = direction;
+        characterTransform.localScale = scale;
+    }
+
+    void OnFire() //OnFire is an void of Unitys new InputSystem that usually used to shoot
+
+        
+    {
+        if (cooldownTimer <= 0)
+        {
+
+
+            animator.SetTrigger("IsAttacking"); //Trigger's IsAttacking parameter in animator
+
+            Collider2D[] hitenemies = Physics2D.OverlapCircleAll(attackpoint.position, attackrange, enemyLayer); //It creates a circle, whose location radius and layer we specify ourselves, and saves the objects in contact with it in the array.
+
+
+
+            foreach (Collider2D enemy in hitenemies) //It does the same for all the objects we save in the array.
+            {
+                damage = 30;
+                enemy.GetComponent<Enemy>().TakeDamage(damage); //inflicts the damage we define on the enemy
+
+            }
+            cooldownTimer = cooldownDuration; // sets time to 0
+        }
+    }
+  
+         
+        
+    
+
+   void Aduket()
+    {
+
+
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+ 
+            animator.SetTrigger("IsAduket"); //Triggers IsAduket Parameter
+          
+           
+
+            StartCoroutine(AduketPrefab());
+
+        }
+    }
+
+    void OnDrawGizmosSelected() //Useful void to see your sword's Attack Point and Range
+    {
+        if (attackpoint == null)
+        {
+            return;
+        }
+
+        Gizmos.DrawWireSphere(attackpoint.position, attackrange);
+    }
+
+
+
+
+
+    public void LockMovement() { canMove = false; } //Locks Movement (Required to edit smth in animation panel)
+    public void UnlockMovement() { canMove = true; } //Unlocks Movement (Required to edit smth in animation panel)
+
+  
+
+    IEnumerator AduketPrefab()
+    {
+        yield return new WaitForSeconds(1); //Waiting time for animation complete
+
+
+        GameObject AduketBall = Instantiate(AduketBallPrefab, firePoint.position, firePoint.rotation);
+        Rigidbody2D rigid = AduketBall.GetComponent<Rigidbody2D>();
+        if (transform.localScale.x < 0) //Players scale
+        {
+            rigid.AddForce((firePoint.right * -1) * ballforce, ForceMode2D.Impulse); //Create's aduket ball towards to left
+        }
+        else { rigid.AddForce((firePoint.right * 1) * ballforce, ForceMode2D.Impulse); }  //Create's aduket ball towards to left
+
+
+    }
+
+
+
+}
